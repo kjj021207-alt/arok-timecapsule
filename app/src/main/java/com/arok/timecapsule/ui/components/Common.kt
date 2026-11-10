@@ -3,6 +3,8 @@ package com.arok.timecapsule.ui.components
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -157,8 +159,9 @@ fun PillButton(
 /** 둥근 세그먼트 선택 (Pleos 화면의 칩 톤) */
 @Composable
 fun <T> Segmented(options: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit, modifier: Modifier = Modifier) {
+    // 좁은 화면(세로 모드)에서는 옆으로 밀어서 볼 수 있게
     Row(
-        modifier.clip(RoundedCornerShape(50)).background(Palette.Raised).padding(4.dp),
+        modifier.horizontalScroll(rememberScrollState()).clip(RoundedCornerShape(50)).background(Palette.Raised).padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         options.forEach { o ->

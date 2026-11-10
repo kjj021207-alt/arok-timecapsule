@@ -30,6 +30,14 @@
 | ![잠긴 캡슐](docs/screenshots/s06_locked.png) 날짜와 장소 조건이 모두 맞아야 열림 | ![가족 캡슐 열림](docs/screenshots/s07_familyUnlocked.png) 할머니가 남긴 캡슐이 그 장소에서 열림 |
 | ![주변 추천](docs/screenshots/s08_recommend.png) 핫플·주차장·드라이브스루 → 경유지 | ![커뮤니티](docs/screenshots/s09_community.png) 공개된 캡슐 피드 |
 
+### 세로 화면
+
+폰이나 Pleos 분할 화면의 좁은 칸에서는 지도가 위, 목록이 아래로 바뀝니다.
+
+| | | |
+| --- | --- | --- |
+| ![세로 홈](docs/screenshots/portrait_s01_home.png) | ![세로 주행 중](docs/screenshots/portrait_s02_revisitWhileDriving.png) | ![세로 캡슐 남기기](docs/screenshots/portrait_s04_compose.png) |
+
 ## APK 파일 위치
 
 - 저장소: [`apk/AROK_추억을저장하는타임캡슐_release.apk`](apk/AROK_추억을저장하는타임캡슐_release.apk) (release 빌드, 18MB)

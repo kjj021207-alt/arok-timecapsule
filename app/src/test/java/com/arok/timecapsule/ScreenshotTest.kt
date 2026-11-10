@@ -45,14 +45,22 @@ import kotlin.math.tan
  * 실행: ./gradlew recordPaparazziDebug → app/src/test/snapshots/images/
  * 지도는 렌더링 중 인터넷을 쓸 수 없어 test/resources/tiles 의 OpenStreetMap 타일(줌 7)을 앱과 같은 색 변환으로 그린다.
  */
-class ScreenshotTest {
+/** 차량 화면(가로 1920×900) */
+class ScreenshotTest : ScreenshotScenes(
+    DeviceConfig.PIXEL_5.copy(
+        screenWidth = 1920, screenHeight = 900, xdpi = 240, ydpi = 240,
+        density = Density.HIGH, orientation = ScreenOrientation.LANDSCAPE, softButtons = false,
+    )
+)
+
+/** 폰 세로 화면 (Pleos 분할 화면의 좁은 칸도 같은 배치) */
+class PortraitScreenshotTest : ScreenshotScenes(DeviceConfig.PIXEL_5)
+
+abstract class ScreenshotScenes(device: DeviceConfig) {
 
     @get:Rule
     val paparazzi = Paparazzi(
-        deviceConfig = DeviceConfig.PIXEL_5.copy(
-            screenWidth = 1920, screenHeight = 900, xdpi = 240, ydpi = 240,
-            density = Density.HIGH, orientation = ScreenOrientation.LANDSCAPE, softButtons = false,
-        ),
+        deviceConfig = device,
         theme = "android:Theme.Material.NoActionBar",
         maxPercentDifference = 1.0,
     )
@@ -120,7 +128,7 @@ class ScreenshotTest {
 
 /** 줌 7 타일을 이어 붙인 정적 한국 지도 + 핀 (스크린샷 전용) */
 @Composable
-private fun StaticKoreaMap(capsules: List<CapsuleEntity>, here: LatLng?, selectedId: Long?, modifier: Modifier) {
+internal fun StaticKoreaMap(capsules: List<CapsuleEntity>, here: LatLng?, selectedId: Long?, modifier: Modifier) {
     val zoom = 7
     val tiles = remember {
         (107..111).flatMap { x -> (48..51).map { y -> Triple(x, y, "tiles/${zoom}_${x}_${y}.png") } }.mapNotNull { (x, y, path) ->

@@ -19,12 +19,14 @@ import com.arok.timecapsule.ui.panels.pinColor
 import com.arok.timecapsule.ui.theme.Palette
 import android.graphics.ColorMatrixColorFilter
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.CustomZoomButtonsController
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 
 private val KOREA_CENTER = GeoPoint(36.2, 127.9)
+private val KOREA_BOUNDS = BoundingBox(38.65, 130.0, 33.1, 125.8)
 
 /** 지도 출처 표기 (OpenStreetMap 이용 조건) */
 const val MAP_ATTRIBUTION = "© OpenStreetMap contributors"
@@ -67,6 +69,8 @@ fun CapsuleMap(
             minZoomLevel = 6.0
             controller.setZoom(7.3)
             controller.setCenter(KOREA_CENTER)
+            // 화면 크기(가로·세로)에 맞춰 제주까지 한국 전체가 보이도록 첫 배치 시 맞춘다
+            addOnFirstLayoutListener { _, _, _, _, _ -> zoomToBoundingBox(KOREA_BOUNDS, false, 24) }
         }
     }
     DisposableEffect(Unit) {

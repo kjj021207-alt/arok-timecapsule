@@ -32,7 +32,6 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:screenOrientation="landscape"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode">
             <!-- 주행 중에도 화면을 띄울 수 있게 선언하고, 주행 중 입력 제한은 앱이 직접 지킨다 -->
             <meta-data android:name="distractionOptimized" android:value="true" />

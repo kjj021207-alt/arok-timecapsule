@@ -3,6 +3,7 @@ package com.arok.timecapsule.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -142,50 +143,70 @@ fun MainLayout(
     demo: (@Composable () -> Unit)? = null,
 ) {
     val ui = s.ui
-    Column(Modifier.fillMaxSize().background(Palette.Background).padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        TopBar(s)
-        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            // ── 지도 패널 ──
-            Box(Modifier.weight(1.12f).fillMaxHeight().clip(RoundedCornerShape(22.dp)).background(Palette.Surface)) {
-                map(Modifier.fillMaxSize())
-                Row(Modifier.align(Alignment.TopStart).padding(14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MapChip("캡슐 ${s.capsules.size}")
-                    MapChip("다녀온 도시 ${s.capsules.map { it.city }.toSet().size}")
+    // 화면 비율에 따라 배치를 바꾼다.
+    // 가로(차량 화면): 왼쪽 지도 + 오른쪽 패널 / 세로(폰, Pleos 분할 화면의 좁은 칸): 위 지도 + 아래 패널
+    BoxWithConstraints(Modifier.fillMaxSize().background(Palette.Background)) {
+        val portrait = maxWidth < maxHeight || maxWidth < 760.dp
+        val gap = if (portrait) 8.dp else 12.dp
+        Column(Modifier.fillMaxSize().padding(gap), verticalArrangement = Arrangement.spacedBy(gap)) {
+            TopBar(s, compact = portrait)
+            if (portrait) {
+                MapPanel(s, a, map, compact = true, modifier = Modifier.fillMaxWidth().weight(0.42f))
+                SidePanel(s, a, demo, compact = true, modifier = Modifier.fillMaxWidth().weight(0.58f))
+            } else {
+                Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(gap)) {
+                    MapPanel(s, a, map, compact = false, modifier = Modifier.weight(1.12f).fillMaxHeight())
+                    SidePanel(s, a, demo, compact = false, modifier = Modifier.weight(1f).fillMaxHeight())
                 }
-                Legend(Modifier.align(Alignment.BottomStart).padding(14.dp))
-                Text(
-                    com.arok.timecapsule.ui.map.MAP_ATTRIBUTION, color = Palette.Faint, style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(horizontal = 16.dp, vertical = 20.dp),
-                )
-                ui.revisit?.let { r ->
-                    Box(Modifier.align(Alignment.BottomCenter).padding(start = 14.dp, end = 14.dp, bottom = 60.dp)) {
-                        NoticeCard(
-                            Icons.Outlined.History,
-                            title = "${r.city}, ${r.memories.size}번 왔었어요",
-                            body = r.memories.joinToString(" · ") { "${it.placeName}${it.companionList.takeIf { l -> l.isNotEmpty() }?.let { l -> " (${l.joinToString(", ")})" } ?: ""}" } +
-                                if (s.driving) "\n정차하면 자세히 보여드릴게요." else "",
-                            accent = Palette.Memory,
-                            actionLabel = if (s.driving) null else "기억 보기",
-                            onAction = { a.select(r.memories.first().id) },
-                            onDismiss = a.dismissRevisit,
-                        )
-                    }
-                }
-            }
-            // ── 오른쪽 패널 ──
-            Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(22.dp)).background(Palette.Surface).padding(18.dp)) {
-                val received = s.capsules.count { it.origin == CapsuleOrigin.RECEIVED }
-                Segmented(
-                    PanelTab.entries, ui.tab,
-                    { t -> if (t == PanelTab.RECEIVED && received > 0) "${t.label} $received" else t.label },
-                    a.selectTab,
-                )
-                Box(Modifier.weight(1f).padding(top = 16.dp)) { PanelContent(s, a) }
-                demo?.invoke()
             }
         }
     }
     ui.sendOfferId?.let { id -> SendDialog(onSend = { to -> a.sendToFamily(id, to) }, onDismiss = a.dismissSendOffer) }
+}
+
+@Composable
+private fun MapPanel(s: ScreenState, a: ScreenActions, map: @Composable (Modifier) -> Unit, compact: Boolean, modifier: Modifier) {
+    val pad = if (compact) 10.dp else 14.dp
+    Box(modifier.clip(RoundedCornerShape(22.dp)).background(Palette.Surface)) {
+        map(Modifier.fillMaxSize())
+        Row(Modifier.align(Alignment.TopStart).padding(pad), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            MapChip("캡슐 ${s.capsules.size}")
+            MapChip("다녀온 도시 ${s.capsules.map { it.city }.toSet().size}")
+        }
+        if (!compact) Legend(Modifier.align(Alignment.BottomStart).padding(pad))
+        Text(
+            com.arok.timecapsule.ui.map.MAP_ATTRIBUTION, color = Palette.Faint, style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.align(Alignment.BottomEnd).padding(horizontal = 16.dp, vertical = if (compact) 8.dp else 20.dp),
+        )
+        s.ui.revisit?.let { r ->
+            Box(Modifier.align(Alignment.BottomCenter).padding(start = pad, end = pad, bottom = if (compact) 28.dp else 60.dp)) {
+                NoticeCard(
+                    Icons.Outlined.History,
+                    title = "${r.city}, ${r.memories.size}번 왔었어요",
+                    body = r.memories.joinToString(" · ") { "${it.placeName}${it.companionList.takeIf { l -> l.isNotEmpty() }?.let { l -> " (${l.joinToString(", ")})" } ?: ""}" } +
+                        if (s.driving) "\n정차하면 자세히 보여드릴게요." else "",
+                    accent = Palette.Memory,
+                    actionLabel = if (s.driving) null else "기억 보기",
+                    onAction = { a.select(r.memories.first().id) },
+                    onDismiss = a.dismissRevisit,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SidePanel(s: ScreenState, a: ScreenActions, demo: (@Composable () -> Unit)?, compact: Boolean, modifier: Modifier) {
+    Column(modifier.clip(RoundedCornerShape(22.dp)).background(Palette.Surface).padding(if (compact) 14.dp else 18.dp)) {
+        val received = s.capsules.count { it.origin == CapsuleOrigin.RECEIVED }
+        Segmented(
+            PanelTab.entries, s.ui.tab,
+            { t -> if (t == PanelTab.RECEIVED && received > 0) "${t.label} $received" else t.label },
+            a.selectTab,
+        )
+        Box(Modifier.weight(1f).padding(top = if (compact) 12.dp else 16.dp)) { PanelContent(s, a) }
+        demo?.invoke()
+    }
 }
 
 @Composable
@@ -231,16 +252,17 @@ private fun PanelContent(s: ScreenState, a: ScreenActions) {
 }
 
 @Composable
-private fun TopBar(s: ScreenState) {
+private fun TopBar(s: ScreenState, compact: Boolean) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text("추억 타임캡슐", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text(s.city ?: "위치 확인 중", color = Palette.Muted)
+        Text("추억 타임캡슐", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f), maxLines = 1)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 16.dp)) {
+            Text(s.city ?: "위치 확인 중", color = Palette.Muted, maxLines = 1)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Box(Modifier.size(8.dp).clip(CircleShape).background(if (s.driving) Palette.Accent else Palette.Faint))
-                Text(if (s.driving) "주행 중" else "정차", color = if (s.driving) Palette.Accent else Palette.Muted)
+                Text(if (s.driving) "주행 중" else "정차", color = if (s.driving) Palette.Accent else Palette.Muted, maxLines = 1)
             }
-            Text(if (s.connectedToCar) "Pleos 연결됨" else "데모 모드", color = Palette.Faint)
+            // 좁은 화면에서는 연결 상태 글자를 줄여 제목이 밀리지 않게 한다
+            Text(if (s.connectedToCar) (if (compact) "Pleos" else "Pleos 연결됨") else (if (compact) "데모" else "데모 모드"), color = Palette.Faint, maxLines = 1)
         }
     }
 }
