@@ -1,0 +1,166 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "075c7b88c3946b6ff69cedd2fd6562ad",
+    "entities": [
+      {
+        "tableName": "capsules",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `memo` TEXT NOT NULL, `voicePath` TEXT, `photoScene` TEXT NOT NULL, `latitude` REAL NOT NULL, `longitude` REAL NOT NULL, `placeName` TEXT NOT NULL, `city` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `companions` TEXT NOT NULL, `passengerCount` INTEGER, `tripDistanceKm` REAL, `tripMinutes` INTEGER, `rainy` INTEGER NOT NULL, `lockYear` INTEGER, `lockMonth` INTEGER, `lockDay` INTEGER, `lockAtPlace` INTEGER NOT NULL, `opened` INTEGER NOT NULL, `origin` TEXT NOT NULL, `senderName` TEXT, `isPublic` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "memo",
+            "columnName": "memo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "voicePath",
+            "columnName": "voicePath",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "photoScene",
+            "columnName": "photoScene",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "latitude",
+            "columnName": "latitude",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "longitude",
+            "columnName": "longitude",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "placeName",
+            "columnName": "placeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "city",
+            "columnName": "city",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "companions",
+            "columnName": "companions",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "passengerCount",
+            "columnName": "passengerCount",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "tripDistanceKm",
+            "columnName": "tripDistanceKm",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "tripMinutes",
+            "columnName": "tripMinutes",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "rainy",
+            "columnName": "rainy",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lockYear",
+            "columnName": "lockYear",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lockMonth",
+            "columnName": "lockMonth",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lockDay",
+            "columnName": "lockDay",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lockAtPlace",
+            "columnName": "lockAtPlace",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "opened",
+            "columnName": "opened",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "origin",
+            "columnName": "origin",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "senderName",
+            "columnName": "senderName",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "isPublic",
+            "columnName": "isPublic",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '075c7b88c3946b6ff69cedd2fd6562ad')"
+    ]
+  }
+}

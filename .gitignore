@@ -1,0 +1,16 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/app/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+*.keystore
+*.jks
+
+# Paparazzi 출력 (공유용 이미지는 docs/screenshots)
+/app/src/test/snapshots/
+.kotlin/
