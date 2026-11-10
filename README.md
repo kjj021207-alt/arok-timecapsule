@@ -30,15 +30,20 @@
 | ![잠긴 캡슐](docs/screenshots/s06_locked.png) 날짜와 장소 조건이 모두 맞아야 열림 | ![가족 캡슐 열림](docs/screenshots/s07_familyUnlocked.png) 할머니가 남긴 캡슐이 그 장소에서 열림 |
 | ![주변 추천](docs/screenshots/s08_recommend.png) 핫플·주차장·드라이브스루 → 경유지 | ![커뮤니티](docs/screenshots/s09_community.png) 공개된 캡슐 피드 |
 
+## APK 파일 위치
+
+- 저장소: [`apk/AROK_추억을저장하는타임캡슐_release.apk`](apk/AROK_추억을저장하는타임캡슐_release.apk) (release 빌드, 18MB)
+- GitHub Release: [v0.1.0](https://github.com/kjj021207-alt/arok-timecapsule/releases/tag/v0.1.0)
+
 ## 실행 방법
 
 ### APK로 바로 실행
 
-1. [`apk/AROK_추억타임캡슐_release.apk`](apk/)를 내려받습니다.
+1. 위 APK 파일을 내려받습니다.
 2. Pleos Connect Emulator(또는 안드로이드 기기)를 켜고 APK를 화면에 끌어다 놓거나 아래 명령으로 설치합니다.
 
 ```bash
-adb install apk/AROK_추억타임캡슐_release.apk
+adb install apk/AROK_추억을저장하는타임캡슐_release.apk
 ```
 
 처음 실행하면 위치(Pleos FusedLocation)와 마이크 권한을 요청합니다.
