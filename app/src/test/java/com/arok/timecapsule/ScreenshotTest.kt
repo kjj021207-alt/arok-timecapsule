@@ -23,6 +23,7 @@ import com.arok.timecapsule.data.db.CapsuleEntity
 import com.arok.timecapsule.domain.CapsuleRules
 import com.arok.timecapsule.domain.Cities
 import com.arok.timecapsule.domain.LatLng
+import com.arok.timecapsule.domain.Recommender
 import com.arok.timecapsule.ui.MainLayout
 import com.arok.timecapsule.ui.PanelTab
 import com.arok.timecapsule.ui.RevisitBanner
@@ -83,13 +84,13 @@ abstract class ScreenshotScenes(device: DeviceConfig) {
     ) = ScreenState(
         ui = ui, capsules = list, here = here, city = Cities.cityOf(here), driving = driving, connectedToCar = true,
         destinationName = destination, passengers = 3, carFacts = carFacts, speech = SpeechResult.Idle,
-        recommendations = SampleData.recommendationsNear(Cities.cityOf(here)),
+        recommendations = Recommender.rank(here, SampleData.places),
         lockStatus = { c -> CapsuleRules.check(c, LocalDate.of(2026, 11, 10), here) },
     )
 
     private fun shoot(s: ScreenState) = paparazzi.snapshot {
         TimeCapsuleTheme {
-            MainLayout(s, ScreenActions(), map = { m -> StaticKoreaMap(s.capsules, s.here, s.ui.selectedId, m) })
+            MainLayout(s, ScreenActions(), map = { m -> StaticKoreaMap(s.shownCapsules, s.here, s.ui.selectedId, m) })
         }
     }
 
@@ -124,6 +125,8 @@ abstract class ScreenshotScenes(device: DeviceConfig) {
     @Test fun s08_recommend() = shoot(state(gyeongpo, ui = UiState(tab = PanelTab.RECOMMEND)))
 
     @Test fun s09_community() = shoot(state(suwon, ui = UiState(tab = PanelTab.COMMUNITY)))
+
+    @Test fun s10_filter() = shoot(state(suwon, ui = UiState(cityFilter = "강릉")))
 }
 
 /** 줌 7 타일을 이어 붙인 정적 한국 지도 + 핀 (스크린샷 전용) */

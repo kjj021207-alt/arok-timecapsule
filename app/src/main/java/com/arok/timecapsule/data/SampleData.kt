@@ -60,29 +60,50 @@ object SampleData {
 
     val family = listOf("엄마", "아빠", "동생", "할머니")
 
-    data class Recommendation(val kind: Kind, val name: String, val detail: String, val position: LatLng) {
-        enum class Kind(val label: String) { HOTPLACE("현지 핫플"), PARKING("주차장"), DRIVE_THRU("드라이브스루") }
-    }
+    /**
+     * 주변 추천 후보 (프로토타입 예시 데이터).
+     * 실제 서비스에서는 popularity = 내비 목적지 선택 수 집계(서버), freeSpots = 공공데이터포털 주차장 실시간 정보,
+     * waitingCars = 매장 제휴 정보로 채운다. 정렬 규칙은 [com.arok.timecapsule.domain.Recommender].
+     */
+    data class Place(
+        val kind: PlaceKind,
+        val name: String,
+        val position: LatLng,
+        val popularity: Int = 0,
+        val freeSpots: Int? = null,
+        val waitingCars: Int? = null,
+    )
 
-    /** 팀 결정: 핫플은 "많은 사람이 목적지로 선택한 곳" 기준. 프로토타입은 예시 데이터. */
-    fun recommendationsNear(city: String?): List<Recommendation> = when (city) {
-        "강릉" -> listOf(
-            Recommendation(Recommendation.Kind.HOTPLACE, "안목해변 커피거리", "이번 주 목적지 선택 1,240회", LatLng(37.7720, 128.9470)),
-            Recommendation(Recommendation.Kind.HOTPLACE, "주문진 수산시장", "이번 주 목적지 선택 860회", LatLng(37.8930, 128.8300)),
-            Recommendation(Recommendation.Kind.PARKING, "경포해변 공영주차장", "도보 3분 · 남은 자리 41면", LatLng(37.8040, 128.9080)),
-            Recommendation(Recommendation.Kind.DRIVE_THRU, "커피 드라이브스루 (교동)", "경로상 2.1km · 대기 3대", LatLng(37.7600, 128.8950)),
-        )
-        "경주" -> listOf(
-            Recommendation(Recommendation.Kind.HOTPLACE, "황리단길", "이번 주 목적지 선택 2,010회", LatLng(35.8380, 129.2100)),
-            Recommendation(Recommendation.Kind.PARKING, "대릉원 공영주차장", "도보 2분 · 남은 자리 18면", LatLng(35.8370, 129.2130)),
-            Recommendation(Recommendation.Kind.DRIVE_THRU, "버거 드라이브스루 (보문)", "차로 9분 · 대기 없음", LatLng(35.8420, 129.2830)),
-        )
-        else -> listOf(
-            Recommendation(Recommendation.Kind.HOTPLACE, "행궁동 카페거리", "이번 주 목적지 선택 980회", LatLng(37.2830, 127.0130)),
-            Recommendation(Recommendation.Kind.PARKING, "화성행궁 공영주차장", "차로 2분 · 남은 자리 23면", LatLng(37.2820, 127.0140)),
-            Recommendation(Recommendation.Kind.DRIVE_THRU, "커피 드라이브스루 (수원역)", "경로상 1.8km · 대기 3대", LatLng(37.2660, 127.0010)),
-        )
-    }
+    enum class PlaceKind(val label: String) { HOTPLACE("현지 핫플"), PARKING("주차장"), DRIVE_THRU("드라이브스루") }
+
+    val places = listOf(
+        // 수원
+        Place(PlaceKind.HOTPLACE, "행궁동 카페거리", LatLng(37.2830, 127.0130), popularity = 980),
+        Place(PlaceKind.HOTPLACE, "수원 통닭거리", LatLng(37.2790, 127.0170), popularity = 1410),
+        Place(PlaceKind.HOTPLACE, "광교호수공원", LatLng(37.2830, 127.0660), popularity = 760),
+        Place(PlaceKind.PARKING, "화성행궁 공영주차장", LatLng(37.2820, 127.0140), freeSpots = 23),
+        Place(PlaceKind.PARKING, "팔달문 노상주차장", LatLng(37.2770, 127.0170), freeSpots = 4),
+        Place(PlaceKind.PARKING, "수원천 공영주차장", LatLng(37.2740, 127.0190), freeSpots = 0),
+        Place(PlaceKind.DRIVE_THRU, "커피 드라이브스루 (수원역)", LatLng(37.2660, 127.0010), waitingCars = 3),
+        Place(PlaceKind.DRIVE_THRU, "버거 드라이브스루 (인계동)", LatLng(37.2650, 127.0300), waitingCars = 6),
+        // 강릉
+        Place(PlaceKind.HOTPLACE, "안목해변 커피거리", LatLng(37.7720, 128.9470), popularity = 1240),
+        Place(PlaceKind.HOTPLACE, "주문진 수산시장", LatLng(37.8930, 128.8300), popularity = 860),
+        Place(PlaceKind.HOTPLACE, "오죽헌", LatLng(37.7790, 128.8780), popularity = 530),
+        Place(PlaceKind.PARKING, "경포해변 공영주차장", LatLng(37.8040, 128.9080), freeSpots = 41),
+        Place(PlaceKind.PARKING, "안목해변 공영주차장", LatLng(37.7710, 128.9440), freeSpots = 7),
+        Place(PlaceKind.DRIVE_THRU, "커피 드라이브스루 (교동)", LatLng(37.7600, 128.8950), waitingCars = 3),
+        Place(PlaceKind.DRIVE_THRU, "버거 드라이브스루 (포남동)", LatLng(37.7700, 128.9150), waitingCars = 1),
+        // 경주
+        Place(PlaceKind.HOTPLACE, "황리단길", LatLng(35.8380, 129.2100), popularity = 2010),
+        Place(PlaceKind.HOTPLACE, "동궁과 월지", LatLng(35.8340, 129.2270), popularity = 1350),
+        Place(PlaceKind.PARKING, "대릉원 공영주차장", LatLng(35.8370, 129.2130), freeSpots = 18),
+        Place(PlaceKind.PARKING, "황남동 공영주차장", LatLng(35.8360, 129.2080), freeSpots = 2),
+        Place(PlaceKind.DRIVE_THRU, "버거 드라이브스루 (보문)", LatLng(35.8420, 129.2830), waitingCars = 0),
+        // 부산
+        Place(PlaceKind.HOTPLACE, "광안리 해변", LatLng(35.1532, 129.1186), popularity = 2400),
+        Place(PlaceKind.PARKING, "광안리 공영주차장", LatLng(35.1550, 129.1170), freeSpots = 12),
+    )
 
     data class CommunityPost(val author: String, val title: String, val placeName: String, val photoScene: String, val likes: Int, val position: LatLng)
 

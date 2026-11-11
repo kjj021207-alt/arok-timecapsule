@@ -28,6 +28,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.arok.timecapsule.ui.theme.Palette
@@ -94,6 +96,25 @@ fun ScenePhoto(scene: String, modifier: Modifier = Modifier, caption: String? = 
                     .padding(horizontal = 8.dp, vertical = 3.dp),
             )
         }
+    }
+}
+
+/**
+ * 캡슐 사진: 사용자가 고른 사진([photo] = 파일 경로 또는 content:// 주소)이 있으면 그 사진, 없으면 예시 풍경.
+ */
+@Composable
+fun CapsulePhoto(photo: String?, scene: String, modifier: Modifier = Modifier, caption: String? = null) {
+    if (photo == null) {
+        ScenePhoto(scene, modifier, caption)
+        return
+    }
+    Box(modifier.clip(RoundedCornerShape(14.dp)).background(Palette.Pressed)) {
+        AsyncImage(
+            model = if (photo.startsWith("content:")) photo else java.io.File(photo),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
     }
 }
 

@@ -249,8 +249,12 @@ class PleosCarSignals private constructor(private val context: Context) : CarSig
         }
     }
 
+    /** Pleos TTS가 준비되지 않았거나 실패하면 안드로이드 기본 음성으로 대신 읽는다 */
+    private val fallbackVoice = com.arok.timecapsule.car.AndroidVoice(context)
+
     override fun speak(text: String) {
-        if (ttsReady) safe("speak") { tts.speak(text, true) } else Log.i(TAG, "tts not ready: $text")
+        val ok = ttsReady && safe("speak") { tts.speak(text, true) }
+        if (!ok) fallbackVoice.speak(text)
     }
 
     override fun startListening() = voice.start()
@@ -268,7 +272,7 @@ class PleosCarSignals private constructor(private val context: Context) : CarSig
             if (locationStarted) { fused.unregisterFusedLocationCallback(locationListener); fused.release() }
             if (naviStarted) { navi.removeListener(naviListener); navi.release() }
             if (vehicleStarted) vehicle.release()
-            tts.release(); voice.release()
+            tts.release(); voice.release(); fallbackVoice.release()
         }
         locationStarted = false; naviStarted = false; vehicleStarted = false; ttsReady = false
     }

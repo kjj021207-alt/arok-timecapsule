@@ -80,6 +80,7 @@ dependencies {
 
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.osmdroid)
+    implementation(libs.coil.compose)
 
     // Pleos Connect SDK
     implementation(libs.pleos.vehicle)

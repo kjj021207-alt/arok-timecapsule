@@ -40,7 +40,7 @@ import com.arok.timecapsule.data.db.CapsuleEntity
 import com.arok.timecapsule.data.db.CapsuleOrigin
 import com.arok.timecapsule.domain.CapsuleRules
 import com.arok.timecapsule.ui.components.PillButton
-import com.arok.timecapsule.ui.components.ScenePhoto
+import com.arok.timecapsule.ui.components.CapsulePhoto
 import com.arok.timecapsule.ui.components.SectionLabel
 import com.arok.timecapsule.ui.components.Surface2
 import com.arok.timecapsule.ui.components.Tag
@@ -78,7 +78,7 @@ private fun CapsuleRow(c: CapsuleEntity, onClick: () -> Unit) {
                     Icon(Icons.Outlined.Lock, null, tint = Palette.Muted)
                 }
             } else {
-                ScenePhoto(c.photoScene, Modifier.size(80.dp, 60.dp))
+                CapsulePhoto(c.photoPath, c.photoScene, Modifier.size(80.dp, 60.dp))
             }
             Column(Modifier.weight(1f).padding(horizontal = 14.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -131,7 +131,7 @@ fun CapsuleDetail(
                 }
             }
         }
-        item { ScenePhoto(c.photoScene, Modifier.fillMaxWidth().aspectRatio(21f / 8f), caption = "사진 · 예시") }
+        item { CapsulePhoto(c.photoPath, c.photoScene, Modifier.fillMaxWidth().aspectRatio(21f / 8f), caption = if (c.photoPath == null) "사진 · 예시" else null) }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(c.title, style = MaterialTheme.typography.headlineSmall)

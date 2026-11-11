@@ -1,6 +1,19 @@
 package com.arok.timecapsule.ui
 
 import androidx.compose.foundation.background
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.graphics.Color
+import com.arok.timecapsule.domain.Recommender
+import com.arok.timecapsule.ui.components.formatDay
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -69,9 +82,12 @@ data class ScreenState(
     val passengers: Int?,
     val carFacts: List<String>,
     val speech: SpeechResult,
-    val recommendations: List<SampleData.Recommendation>,
+    val recommendations: List<Recommender.Scored>,
     val lockStatus: (CapsuleEntity) -> CapsuleRules.UnlockCheck,
-)
+) {
+    /** 필터에 맞는 캡슐 (목록과 지도 핀에 같이 쓴다) */
+    val shownCapsules: List<CapsuleEntity> get() = capsules.filter { MainViewModel.matches(it, ui.cityFilter, ui.yearFilter) }
+}
 
 class ScreenActions(
     val selectTab: (PanelTab) -> Unit = {},
@@ -89,6 +105,11 @@ class ScreenActions(
     val toggleLike: (Int) -> Unit = {},
     val startListening: () -> Unit = {},
     val stopListening: () -> Unit = {},
+    val setCityFilter: (String?) -> Unit = {},
+    val setYearFilter: (Int?) -> Unit = {},
+    val showCities: (Boolean) -> Unit = {},
+    val pickCity: (String) -> Unit = {},
+    val pickPhoto: () -> Unit = {},
 )
 
 @Composable
@@ -107,6 +128,9 @@ fun MainScreen(vm: MainViewModel) {
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(ui.message) { ui.message?.let { snackbar.showSnackbar(it); vm.consumeMessage() } }
 
+    // 기기 사진 고르기 (Android 사진 선택기: 사진 접근 권한 없이 고른 사진만 앱에 전달된다)
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri -> vm.onPhotoPicked(uri?.toString()) }
+
     val state = ScreenState(
         ui = ui, capsules = capsules, here = here, city = city,
         driving = drive == DriveState.DRIVING, connectedToCar = vm.car.isConnectedToCar,
@@ -116,7 +140,7 @@ fun MainScreen(vm: MainViewModel) {
             passengers?.let { "${it}명 탑승" },
             if (rainy) "비 온 날" else null,
         ),
-        speech = speech, recommendations = vm.recommendations, lockStatus = vm::lockStatus,
+        speech = speech, recommendations = remember(here) { vm.recommendations() }, lockStatus = vm::lockStatus,
     )
     val actions = ScreenActions(
         selectTab = vm::selectTab, select = vm::select, startCompose = vm::startCompose, cancelCompose = vm::cancelCompose,
@@ -124,11 +148,13 @@ fun MainScreen(vm: MainViewModel) {
         offerSend = vm::offerSend, sendToFamily = vm::sendToFamily, dismissSendOffer = vm::dismissSendOffer,
         addWaypoint = vm::addWaypoint, toggleLike = vm::toggleLike,
         startListening = vm.car::startListening, stopListening = vm.car::stopListening,
+        setCityFilter = vm::setCityFilter, setYearFilter = vm::setYearFilter, showCities = vm::showCities, pickCity = vm::pickCity,
+        pickPhoto = { photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
     )
     Box(Modifier.fillMaxSize()) {
         MainLayout(
             state, actions,
-            map = { m -> CapsuleMap(capsules, here, ui.selectedId, { vm.select(it) }, m) },
+            map = { m -> CapsuleMap(state.shownCapsules, here, ui.selectedId, { vm.select(it) }, m) },
             demo = (vm.car as? DemoCarSignals)?.let { d -> { DemoBar(d) } },
         )
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(24.dp))
@@ -162,6 +188,7 @@ fun MainLayout(
         }
     }
     ui.sendOfferId?.let { id -> SendDialog(onSend = { to -> a.sendToFamily(id, to) }, onDismiss = a.dismissSendOffer) }
+    if (ui.showCities) CitiesDialog(MainViewModel.visitedCities(s.capsules), onPick = a.pickCity, onDismiss = { a.showCities(false) })
 }
 
 @Composable
@@ -171,7 +198,7 @@ private fun MapPanel(s: ScreenState, a: ScreenActions, map: @Composable (Modifie
         map(Modifier.fillMaxSize())
         Row(Modifier.align(Alignment.TopStart).padding(pad), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             MapChip("캡슐 ${s.capsules.size}")
-            MapChip("다녀온 도시 ${s.capsules.map { it.city }.toSet().size}")
+            MapChip("다녀온 도시 ${s.capsules.map { it.city }.toSet().size}  ›", onClick = { a.showCities(true) })
         }
         if (!compact) Legend(Modifier.align(Alignment.BottomStart).padding(pad))
         Text(
@@ -216,7 +243,9 @@ private fun PanelContent(s: ScreenState, a: ScreenActions) {
     when {
         ui.composing -> ComposePanel(
             placeLabel = s.destinationName ?: s.city ?: "현재 위치", passengerCount = s.passengers, carFacts = s.carFacts,
-            driving = s.driving, speech = s.speech, onStartListening = a.startListening, onStopListening = a.stopListening,
+            driving = s.driving, speech = s.speech, pickedPhoto = ui.pickedPhoto,
+            knownCompanions = MainViewModel.knownCompanions(s.capsules), onPickPhoto = a.pickPhoto,
+            onStartListening = a.startListening, onStopListening = a.stopListening,
             onCancel = a.cancelCompose, onSave = a.save,
         )
         selected != null -> CapsuleDetail(
@@ -224,9 +253,10 @@ private fun PanelContent(s: ScreenState, a: ScreenActions) {
             onBack = { a.select(null) }, onReadAloud = { a.readAloud(selected) }, onSend = { a.offerSend(selected.id) },
         )
         ui.tab == PanelTab.MINE -> CapsuleList(
-            capsules = s.capsules.filter { it.origin == CapsuleOrigin.MINE },
+            capsules = s.shownCapsules.filter { it.origin == CapsuleOrigin.MINE },
             header = {
-                when {
+                FilterBar(s, a)
+                if (ui.cityFilter == null && ui.yearFilter == null) when {
                     ui.arrivalPrompt -> NoticeCard(
                         Icons.Outlined.Place, "${s.destinationName ?: s.city ?: "목적지"}에 도착했어요",
                         "오늘을 캡슐로 남길까요? 날짜·시간·함께 탄 인원·주행 기록은 자동으로 붙어요.",
@@ -239,12 +269,15 @@ private fun PanelContent(s: ScreenState, a: ScreenActions) {
                     else -> NoticeCard(Icons.Outlined.Inventory2, "지금 이곳을 남겨 둘까요?", "사진·메모·음성과 함께 간 사람을 기록해요.", actionLabel = "캡슐 남기기", onAction = a.startCompose)
                 }
             },
-            onOpen = a.select, emptyText = "아직 남긴 캡슐이 없어요.",
+            onOpen = a.select, emptyText = if (ui.cityFilter == null && ui.yearFilter == null) "아직 남긴 캡슐이 없어요." else "조건에 맞는 캡슐이 없어요.",
         )
         ui.tab == PanelTab.RECEIVED -> CapsuleList(
-            capsules = s.capsules.filter { it.origin == CapsuleOrigin.RECEIVED },
-            header = { Text("가족이 보낸 캡슐은 바로 열어볼 수 있어요. 보낸 사람이 장소를 정했다면 그곳에서 열려요.", color = Palette.Muted) },
-            onOpen = a.select, emptyText = "받은 캡슐이 없어요.",
+            capsules = s.shownCapsules.filter { it.origin == CapsuleOrigin.RECEIVED },
+            header = {
+                FilterBar(s, a)
+                if (ui.cityFilter == null && ui.yearFilter == null) Text("가족이 보낸 캡슐은 바로 열어볼 수 있어요. 보낸 사람이 장소를 정했다면 그곳에서 열려요.", color = Palette.Muted)
+            },
+            onOpen = a.select, emptyText = if (ui.cityFilter == null && ui.yearFilter == null) "받은 캡슐이 없어요." else "조건에 맞는 캡슐이 없어요.",
         )
         ui.tab == PanelTab.RECOMMEND -> RecommendPanel(s.city, s.recommendations, a.addWaypoint)
         ui.tab == PanelTab.COMMUNITY -> CommunityPanel(ui.likedPosts, a.toggleLike, a.addWaypoint)
@@ -268,10 +301,72 @@ private fun TopBar(s: ScreenState, compact: Boolean) {
 }
 
 @Composable
-private fun MapChip(text: String) = Text(
+private fun MapChip(text: String, onClick: (() -> Unit)? = null) = Text(
     text, style = MaterialTheme.typography.labelLarge,
-    modifier = Modifier.clip(RoundedCornerShape(50)).background(Palette.Surface.copy(alpha = 0.92f)).padding(horizontal = 14.dp, vertical = 8.dp),
+    modifier = Modifier
+        .clip(RoundedCornerShape(50))
+        .background(Palette.Surface.copy(alpha = 0.92f))
+        .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+        .padding(horizontal = 14.dp, vertical = 8.dp),
 )
+
+/**
+ * 필터 두 줄: 다녀온 도시 / 캡슐을 남긴 해. 글자 입력 없이 누르기만 하면 돼서 운전 중에도 쓸 수 있다.
+ * 같은 칩을 다시 누르거나 "전체"를 누르면 해제.
+ */
+@Composable
+private fun FilterBar(s: ScreenState, a: ScreenActions) {
+    val cities = MainViewModel.visitedCities(s.capsules).map { it.city }
+    val years = MainViewModel.years(s.capsules)
+    Column(Modifier.fillMaxWidth().padding(bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        FilterRow("도시", listOf<String?>(null) + cities, s.ui.cityFilter, { it ?: "전체" }, a.setCityFilter)
+        FilterRow("날짜", listOf<Int?>(null) + years, s.ui.yearFilter, { it?.let { y -> "${y}년" } ?: "전체" }, a.setYearFilter)
+    }
+}
+
+@Composable
+private fun <T> FilterRow(label: String, options: List<T?>, selected: T?, text: (T?) -> String, onPick: (T?) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = Palette.Faint, style = MaterialTheme.typography.labelMedium, modifier = Modifier.width(40.dp))
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            options.forEach { o ->
+                val on = o == selected
+                Tag(
+                    text(o),
+                    color = if (on) Palette.OnAccent else Palette.Text,
+                    background = if (on) Palette.Accent else Palette.Raised,
+                    onClick = { onPick(if (on && o != null) null else o) },
+                )
+            }
+        }
+    }
+}
+
+/** 다녀온 도시 목록: 최근에 간 순. 도시를 누르면 그 도시 캡슐만 보여준다. */
+@Composable
+private fun CitiesDialog(cities: List<VisitedCity>, onPick: (String) -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Palette.Surface,
+        title = { Text("다녀온 도시 ${cities.size}곳") },
+        text = {
+            LazyColumn(Modifier.heightIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(cities, key = { it.city }) { c ->
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Palette.Raised)
+                            .clickable { onPick(c.city) }.padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Outlined.Place, null, tint = Palette.Memory, modifier = Modifier.size(20.dp))
+                        Text(c.city, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f).padding(start = 10.dp))
+                        Text("캡슐 ${c.count} · ${formatDay(c.lastVisit)}", color = Palette.Muted, style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+            }
+        },
+        confirmButton = { PillButton("닫기", onDismiss) },
+    )
+}
 
 @Composable
 private fun Legend(modifier: Modifier) {

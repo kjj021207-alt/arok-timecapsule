@@ -1,5 +1,6 @@
 package com.arok.timecapsule.car
 
+import android.content.Context
 import android.util.Log
 import com.arok.timecapsule.domain.LatLng
 import kotlinx.coroutines.CoroutineScope
@@ -15,8 +16,11 @@ import kotlinx.coroutines.launch
 /**
  * Pleos 서비스가 없는 기기에서 쓰는 데모 신호.
  * 화면 하단의 데모 패널에서 시나리오를 바꾸면 차가 실제로 그렇게 움직인 것처럼 신호를 낸다.
+ * 읽어주기와 음성 메모는 기기의 안드로이드 기본 음성 기능으로 실제로 동작한다.
  */
-class DemoCarSignals : CarSignals {
+class DemoCarSignals(context: Context) : CarSignals {
+
+    private val voice = AndroidVoice(context)
 
     enum class Scenario(val label: String) {
         HOME_PARKED("수원 집 앞 주차"),
@@ -46,11 +50,12 @@ class DemoCarSignals : CarSignals {
     override val trip: StateFlow<TripInfo?> = _trip
     override val rainy: StateFlow<Boolean> = _rainy
     override val destination: StateFlow<Destination?> = _destination
-    override val speech: StateFlow<SpeechResult> = _speech
+    /** 기기에 음성 인식이 있으면 실제 받아쓰기, 없으면 예시 문장으로 흉내 */
+    override val speech: StateFlow<SpeechResult> = if (voice.canListen) voice.speech else _speech
     val scenario: StateFlow<Scenario> = _scenario
 
     override fun start() = Unit
-    override fun stop() = Unit
+    override fun stop() = voice.release()
 
     fun apply(s: Scenario) {
         _scenario.value = s
@@ -73,11 +78,10 @@ class DemoCarSignals : CarSignals {
         onResult(true)
     }
 
-    override fun speak(text: String) {
-        Log.i(TAG, "demo TTS: $text")
-    }
+    override fun speak(text: String) = voice.speak(text)
 
     override fun startListening() {
+        if (voice.canListen) return voice.startListening()
         scope.launch {
             _speech.value = SpeechResult.Listening
             delay(900)
@@ -88,6 +92,7 @@ class DemoCarSignals : CarSignals {
     }
 
     override fun stopListening() {
+        if (voice.canListen) return voice.stopListening()
         if (_speech.value is SpeechResult.Listening) _speech.value = SpeechResult.Idle
     }
 

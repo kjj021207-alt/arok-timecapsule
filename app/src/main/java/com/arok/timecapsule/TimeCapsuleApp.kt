@@ -6,6 +6,7 @@ import com.arok.timecapsule.car.CarSignals
 import com.arok.timecapsule.car.DemoCarSignals
 import com.arok.timecapsule.car.pleos.PleosCarSignals
 import com.arok.timecapsule.data.CapsuleRepository
+import com.arok.timecapsule.data.PhotoStore
 import com.arok.timecapsule.data.db.AppDatabase
 import org.osmdroid.config.Configuration
 
@@ -15,6 +16,8 @@ class TimeCapsuleApp : Application() {
         private set
     lateinit var car: CarSignals
         private set
+    lateinit var photos: PhotoStore
+        private set
 
     override fun onCreate() {
         super.onCreate()
@@ -22,11 +25,12 @@ class TimeCapsuleApp : Application() {
         Configuration.getInstance().userAgentValue = packageName
 
         repository = CapsuleRepository(AppDatabase.create(this).capsuleDao())
+        photos = PhotoStore(this)
 
         // Pleos 차량(에뮬레이터)이면 실제 SDK, 아니면 데모 모드
         car = runCatching { PleosCarSignals.createIfAvailable(this) }
             .onFailure { Log.w("TimeCapsuleApp", "Pleos SDK unavailable, using demo mode", it) }
-            .getOrNull() ?: DemoCarSignals()
+            .getOrNull() ?: DemoCarSignals(this)
         Log.i("TimeCapsuleApp", "car signals: ${car::class.simpleName}")
     }
 }

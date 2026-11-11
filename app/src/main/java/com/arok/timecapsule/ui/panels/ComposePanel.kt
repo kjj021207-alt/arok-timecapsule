@@ -1,6 +1,18 @@
 package com.arok.timecapsule.ui.panels
 
 import androidx.compose.foundation.border
+import com.arok.timecapsule.ui.components.CapsulePhoto
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.draw.clip
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.outlined.PersonAdd
+import androidx.compose.material.icons.outlined.AddPhotoAlternate
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -36,7 +48,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.arok.timecapsule.car.SpeechResult
-import com.arok.timecapsule.data.SampleData
 import com.arok.timecapsule.ui.MainViewModel
 import com.arok.timecapsule.ui.components.PillButton
 import com.arok.timecapsule.ui.components.ScenePhoto
@@ -60,6 +71,11 @@ fun ComposePanel(
     carFacts: List<String>,
     driving: Boolean,
     speech: SpeechResult,
+    /** 기기에서 고른 사진 (content:// 주소). 없으면 예시 풍경을 쓴다 */
+    pickedPhoto: String?,
+    /** 함께 간 사람 후보 (가족 + 예전에 입력한 이름) */
+    knownCompanions: List<String>,
+    onPickPhoto: () -> Unit,
     onStartListening: () -> Unit,
     onStopListening: () -> Unit,
     onCancel: () -> Unit,
@@ -69,6 +85,17 @@ fun ComposePanel(
     var title by remember { mutableStateOf("") }
     var memo by remember { mutableStateOf("") }
     val companions = remember { mutableStateListOf<String>() }
+    // 이번에 직접 입력한 이름 (후보 목록에 바로 보이도록)
+    val typedNames = remember { mutableStateListOf<String>() }
+    var nameInput by remember { mutableStateOf("") }
+    fun addTypedName() {
+        val n = nameInput.trim()
+        if (n.isNotEmpty()) {
+            if (n !in typedNames && n !in knownCompanions) typedNames += n
+            if (n !in companions) companions += n
+        }
+        nameInput = ""
+    }
     var locked by remember { mutableStateOf(false) }
     var lockYear by remember { mutableStateOf((LocalDate.now().year + 1).toString()) }
     var lockMonth by remember { mutableStateOf("") }
@@ -93,14 +120,30 @@ fun ComposePanel(
             NoticeCard(Icons.Outlined.DirectionsCar, "운전 중에는 음성으로만 남겨요", "사진과 글은 정차한 뒤에 붙일 수 있어요.")
         }
         item {
-            SectionLabel("사진")
+            SectionLabel(if (pickedPhoto != null) "사진 · 고른 사진이 저장돼요" else "사진 · 내 사진을 추가하거나 예시 풍경을 고르세요")
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // 기기 사진 고르기 (고른 뒤에는 미리보기, 다시 누르면 바꾸기)
+                Box(
+                    Modifier
+                        .size(76.dp, 56.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Palette.Pressed)
+                        .border(2.dp, if (pickedPhoto != null) Palette.Accent else Color.Transparent, RoundedCornerShape(14.dp))
+                        .clickable(enabled = !driving, onClick = onPickPhoto),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (pickedPhoto != null) CapsulePhoto(pickedPhoto, scene, Modifier.fillMaxSize())
+                    else Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Outlined.AddPhotoAlternate, null, tint = Palette.Text)
+                        Text("내 사진", style = MaterialTheme.typography.labelMedium, color = Palette.Muted)
+                    }
+                }
                 Scenes.all.forEach { s ->
                     ScenePhoto(
                         s.key,
                         Modifier
                             .size(76.dp, 56.dp)
-                            .border(2.dp, if (scene == s.key) Palette.Accent else Color.Transparent, RoundedCornerShape(14.dp))
+                            .border(2.dp, if (pickedPhoto == null && scene == s.key) Palette.Accent else Color.Transparent, RoundedCornerShape(14.dp))
                             .clickable(enabled = !driving) { scene = s.key },
                     )
                 }
@@ -129,7 +172,7 @@ fun ComposePanel(
         item {
             SectionLabel("함께 간 사람 (선택)" + (passengerCount?.let { " · 탑승 ${it}명 감지" } ?: ""))
             FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                SampleData.family.forEach { name ->
+                (knownCompanions + typedNames).distinct().forEach { name ->
                     val on = name in companions
                     Tag(
                         name,
@@ -138,6 +181,20 @@ fun ComposePanel(
                         onClick = { if (on) companions.remove(name) else companions.add(name) },
                     )
                 }
+            }
+            // 목록에 없는 사람은 직접 입력 (친구, 동료 등). 입력한 이름은 다음부터 후보에 나온다.
+            Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = nameInput, onValueChange = { nameInput = it.take(12) }, enabled = !driving, singleLine = true,
+                    placeholder = { Text("이름 직접 입력") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { addTypedName() }),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Palette.Accent, unfocusedBorderColor = Palette.Divider,
+                        focusedContainerColor = Palette.Raised, unfocusedContainerColor = Palette.Raised, disabledContainerColor = Palette.Raised,
+                    ),
+                )
+                PillButton("추가", { addTypedName() }, icon = Icons.Outlined.PersonAdd, enabled = !driving && nameInput.isNotBlank())
             }
         }
         if (carFacts.isNotEmpty()) item {

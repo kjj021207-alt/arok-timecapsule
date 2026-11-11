@@ -20,8 +20,10 @@ data class CapsuleEntity(
     val memo: String,
     /** 앱 내부 저장소의 녹음 파일 경로. 없으면 null */
     val voicePath: String? = null,
-    /** 프로토타입: 예시 사진 장면 키 (sea, hanok, night, green, stone, autumn) */
+    /** 사진이 없을 때 보여줄 예시 장면 키 (sea, hanok, night, green, stone, autumn) */
     val photoScene: String,
+    /** 사용자가 고른 사진 (앱 폴더에 복사된 파일 경로). 없으면 [photoScene]을 보여준다 */
+    val photoPath: String? = null,
     val latitude: Double,
     val longitude: Double,
     val placeName: String,

@@ -4,11 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.arok.timecapsule.car.CarSignals
 import com.arok.timecapsule.data.CapsuleRepository
+import com.arok.timecapsule.data.PhotoStore
 import com.arok.timecapsule.data.SampleData
 import com.arok.timecapsule.data.db.CapsuleEntity
 import com.arok.timecapsule.domain.CapsuleRules
 import com.arok.timecapsule.domain.Cities
 import com.arok.timecapsule.domain.LatLng
+import com.arok.timecapsule.domain.Recommender
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -44,11 +46,23 @@ data class UiState(
     val message: String? = null,
     val likedPosts: Set<Int> = emptySet(),
     val settings: Settings = Settings(),
+    /** 필터: 다녀온 도시 (null = 전체) */
+    val cityFilter: String? = null,
+    /** 필터: 캡슐을 남긴 해 (null = 전체) */
+    val yearFilter: Int? = null,
+    /** 다녀온 도시 목록 창 */
+    val showCities: Boolean = false,
+    /** 캡슐 남기기 중 기기에서 고른 사진 (content:// 주소) */
+    val pickedPhoto: String? = null,
 )
+
+/** 다녀온 도시 한 줄: 도시 이름, 캡슐 수, 마지막으로 남긴 날 */
+data class VisitedCity(val city: String, val count: Int, val lastVisit: Long)
 
 class MainViewModel(
     private val repo: CapsuleRepository,
     val car: CarSignals,
+    private val photos: PhotoStore,
 ) : ViewModel() {
 
     private val _ui = MutableStateFlow(UiState())
@@ -125,13 +139,24 @@ class MainViewModel(
     // ── 화면 동작 ──────────────────────────────────────────
 
     fun selectTab(t: PanelTab) = _ui.update { it.copy(tab = t, selectedId = null, composing = false) }
-    fun select(id: Long?) = _ui.update { it.copy(selectedId = id, composing = false, justUnlockedId = if (id == it.justUnlockedId) id else null) }
-    fun startCompose() = _ui.update { it.copy(composing = true, arrivalPrompt = false, selectedId = null, tab = PanelTab.MINE) }
-    fun cancelCompose() = _ui.update { it.copy(composing = false) }
+    fun select(id: Long?) = _ui.update { it.copy(selectedId = id, composing = false, showCities = false, justUnlockedId = if (id == it.justUnlockedId) id else null) }
+    fun startCompose() = _ui.update { it.copy(composing = true, arrivalPrompt = false, selectedId = null, tab = PanelTab.MINE, pickedPhoto = null) }
+    fun cancelCompose() = _ui.update { it.copy(composing = false, pickedPhoto = null) }
     fun dismissArrival() = _ui.update { it.copy(arrivalPrompt = false) }
     fun dismissRevisit() = _ui.update { it.copy(revisit = null) }
     fun consumeMessage() = _ui.update { it.copy(message = null) }
     fun updateSettings(transform: (Settings) -> Settings) = _ui.update { it.copy(settings = transform(it.settings)) }
+
+    /** 필터를 바꾸면 목록과 지도 핀이 함께 걸러진다. 같은 값을 다시 누르면 해제 */
+    fun setCityFilter(city: String?) = _ui.update { it.copy(cityFilter = city, selectedId = null) }
+    fun setYearFilter(year: Int?) = _ui.update { it.copy(yearFilter = year, selectedId = null) }
+
+    fun showCities(show: Boolean) = _ui.update { it.copy(showCities = show) }
+
+    /** 다녀온 도시 목록에서 도시를 고르면 그 도시 캡슐만 보이게 */
+    fun pickCity(city: String) = _ui.update { it.copy(cityFilter = city, showCities = false, selectedId = null, composing = false, tab = PanelTab.MINE) }
+
+    fun onPhotoPicked(uri: String?) { if (uri != null) _ui.update { it.copy(pickedPhoto = uri) } }
 
     fun lockStatus(c: CapsuleEntity): CapsuleRules.UnlockCheck = CapsuleRules.check(c, LocalDate.now(), car.location.value)
 
@@ -152,11 +177,14 @@ class MainViewModel(
         val city = Cities.cityOf(here) ?: "기타"
         val dest = car.destination.value
         val locked = d.lockYear != null
+        // 기기에서 고른 사진은 앱 안으로 복사해 둔다 (원본이 지워져도 캡슐에 남도록)
+        val photoPath = _ui.value.pickedPhoto?.let { photos.copyIn(it) }
         val id = repo.add(
             CapsuleEntity(
-                title = d.title.ifBlank { "$city 에서" },
+                title = d.title.ifBlank { "${dest?.name ?: city}에서" },
                 memo = d.memo,
                 photoScene = d.photoScene,
+                photoPath = photoPath,
                 latitude = here.latitude,
                 longitude = here.longitude,
                 placeName = dest?.name ?: city,
@@ -176,7 +204,7 @@ class MainViewModel(
             )
         )
         // 팀 결정: 저장 후 "가족에게 전달하시겠어요?" 정도만 제안
-        _ui.update { it.copy(composing = false, selectedId = id, sendOfferId = id, tab = PanelTab.MINE) }
+        _ui.update { it.copy(composing = false, selectedId = id, sendOfferId = id, tab = PanelTab.MINE, pickedPhoto = null) }
     }
 
     fun offerSend(id: Long) = _ui.update { it.copy(sendOfferId = id) }
@@ -199,9 +227,36 @@ class MainViewModel(
         it.copy(likedPosts = if (index in it.likedPosts) it.likedPosts - index else it.likedPosts + index)
     }
 
-    fun readAloud(c: CapsuleEntity) = car.speak("${c.title}. ${c.memo}")
+    fun readAloud(c: CapsuleEntity) {
+        car.speak("${c.placeName}에서. ${c.title}. ${c.memo}")
+        _ui.update { it.copy(message = "\"${c.title}\"을(를) 읽어 드릴게요") }
+    }
 
-    val recommendations get() = SampleData.recommendationsNear(currentCity.value)
+    /** 주변 추천: 현재 위치에서 가까운 후보를 종류별 기준으로 정렬 ([Recommender]) */
+    fun recommendations(): List<Recommender.Scored> = Recommender.rank(car.location.value, SampleData.places)
+
+    companion object {
+        /** 함께 간 사람 후보: 가족 + 예전에 입력한 이름 (자주 쓴 순) */
+        fun knownCompanions(capsules: List<CapsuleEntity>): List<String> {
+            val used = capsules.flatMap { it.companionList }.groupingBy { it }.eachCount()
+                .entries.sortedByDescending { it.value }.map { it.key }
+            return (SampleData.family + used).distinct()
+        }
+
+        /** 필터: 도시와 해가 모두 맞는 캡슐만 */
+        fun matches(c: CapsuleEntity, city: String?, year: Int?): Boolean =
+            (city == null || c.city == city) && (year == null || yearOf(c.createdAt) == year)
+
+        fun yearOf(millis: Long): Int =
+            java.time.Instant.ofEpochMilli(millis).atZone(java.time.ZoneId.systemDefault()).year
+
+        /** 날짜 필터 후보: 캡슐을 남긴 해 (최근 순) */
+        fun years(capsules: List<CapsuleEntity>): List<Int> = capsules.map { yearOf(it.createdAt) }.distinct().sortedDescending()
+
+        fun visitedCities(capsules: List<CapsuleEntity>): List<VisitedCity> =
+            capsules.groupBy { it.city }.map { (city, list) -> VisitedCity(city, list.size, list.maxOf { it.createdAt }) }
+                .sortedByDescending { it.lastVisit }
+    }
 
     override fun onCleared() {
         car.stop()
